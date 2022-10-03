@@ -1,33 +1,57 @@
-import { Body, Controller, Delete, Get, Param, Post, UseInterceptors,ClassSerializerInterceptor } from '@nestjs/common';
+import { Body, Controller, Session, Post, UseInterceptors,ClassSerializerInterceptor, Get,UseGuards } from '@nestjs/common';
 import { UserDto } from 'src/dtos/user.dto';
+import { UserGuard } from 'src/guards/user.guard';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current.user.decorator';
+import { CurrentUserInterceptor } from './interceptors/current.user.interceptor';
+import { User } from './user.entity';
 import { UsersService } from './users.service';
 
 
 @Controller('auth')
 export class UsersController {
-    constructor(private authservice:AuthService){}
+    constructor(private authservice:AuthService,private userService:UsersService){}
 
     @Post("/signup")
     @UseInterceptors(ClassSerializerInterceptor)
-    createUser(@Body() body:UserDto){
-       return this.authservice.signup(body.email,body.password)
+    async signup(@Body() body:UserDto,@Session() session:any){
+       const user= await this.authservice.signup(body.email,body.password)
+       session.userId=user.id;
+       return user;
+    }
+
+    @Post("/signin")
+    @UseInterceptors(ClassSerializerInterceptor)
+    async signin(@Body() body:UserDto,@Session() session:any){
+       const user=await this.authservice.signin(body.email,body.password)
+       session.userId=user.id;
+       return user;
         
     }
 
-    // @Get("/:id")
-    // @UseInterceptors(ClassSerializerInterceptor)
-    // findOne(@Param("id") id:number){
-    //     return this.userService.findOne(id);
-    // }
+    @Get()
+    @UseGuards(UserGuard)
+    @UseInterceptors(ClassSerializerInterceptor)
+    whoami(@CurrentUser() user:User){
+        return user;
+    }
+
+
+    @Get("/signout")
+    async signout(@Session() session:any){
+        session.userId=null;
+        
+    }
+
+    
 
     // @Delete("/:id")
     // delete(@Param("id") id:number){
     //     this.userService.delete(id)
     // }
 
-    // @Get()
-    // find(){
-    //     return this.userService.find();
-    // }
+    @Get("/test")
+    find(@CurrentUser() user:User){
+        return user;
+    }
 }
